@@ -1,14 +1,16 @@
 import { Bell, Plus, Search } from "lucide-react";
 import LiveAuction from "../components/LiveAuction";
+import { useNavigate } from "react-router";
 
 export default function Dashboard() {
+
   const stats = [
     { title: "Active Bids", value: "24", color: "from-violet-500 to-purple-600" },
     { title: "Won Auctions", value: "08", color: "from-emerald-500 to-green-600" },
     { title: "Watchlist", value: "31", color: "from-orange-500 to-amber-500" },
     { title: "Money Saved", value: "₹1.24L", color: "from-cyan-500 to-sky-600" },
   ];
-
+  const navigate=useNavigate()
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#0B101A] text-slate-200 p-6 lg:p-12">
       
@@ -27,19 +29,29 @@ export default function Dashboard() {
             <h1 className="text-4xl lg:text-5xl font-bold text-white">Welcome Back 👋</h1>
             <p className="text-slate-400 mt-2">Manage your bids and discover premium auctions.</p>
           </div>
+<div className="flex flex-wrap items-center gap-3">
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center bg-[#111827]/70 border border-slate-800 rounded-2xl px-4 py-3 w-full md:w-[350px] backdrop-blur-sm">
-              <Search className="text-slate-500" size={18} />
-              <input
-                className="bg-transparent outline-none ml-3 w-full text-sm text-white"
-                placeholder="Search auctions..."
-              />
-            </div>
-            <button className="p-4 border border-slate-800 rounded-2xl bg-[#111827]/70 hover:border-violet-500 transition-all">
-              <Bell size={20} />
-            </button>
-          </div>
+  {/* Search */}
+  <div className="flex items-center bg-[#111827]/70 border border-slate-800 rounded-2xl px-4 py-3 w-full md:w-[350px] backdrop-blur-sm">
+    <Search className="text-slate-500" size={18} />
+    <input
+      className="bg-transparent outline-none ml-3 w-full text-sm text-white"
+      placeholder="Search auctions..."
+    />
+  </div>
+
+  {/* Notification */}
+  <button className="p-4 border border-slate-800 rounded-2xl bg-[#111827]/70 hover:border-violet-500 hover:bg-violet-500/10 transition-all duration-300">
+    <Bell size={20} />
+  </button>
+
+  {/* Create Auction */}
+  <button className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-4 font-semibold text-white hover:scale-105 hover:shadow-[0_0_25px_rgba(124,58,237,0.35)] transition-all duration-300" onClick={()=>navigate('/create-auction')}>
+    <Plus size={18} />
+    <span>Create Auction</span>
+  </button>
+
+</div>
         </header>
 
         {/* Stats */}
