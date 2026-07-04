@@ -1,5 +1,6 @@
 import monogoose from 'mongoose'
 import bcrypt from 'bcrypt'
+import jwt from 'jsonwebtoken'
 const userSchema = new monogoose.Schema({
     fullname:{
         type:String,
