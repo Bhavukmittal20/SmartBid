@@ -2,16 +2,17 @@ import React from 'react';
 import { Gavel, ArrowLeft, Mail, Lock, User, Phone } from 'lucide-react';
 import { useState } from 'react';
 import axios from 'axios'
+import {toast} from 'react-toastify'
 export default function RegisterPage() {
   const registerUser=async (e)=>{
 try {
   e.preventDefault()
       if(password!==confirmPassword){
-        console.log('Passwords do not match');
+        toast.error('Passwords do not match');
         return ;
       }
       if([fullname,email,password].some((field)=>field?.trim()=="")){
-        console.log('All Fields are compulsory.')
+        toast.error('All Fields are compulsory.')
         return;
       }
       const response=await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/register`,{
@@ -25,12 +26,12 @@ try {
       })
       const data=await response.json()
       if(!data.success){
-        console.log(response.message)
+        toast.error(data.message)
       }else{
-        console.log('Success!')
+        toast.success('Account created successfully!')
       }
 } catch (error) {
-  console.log(error)
+  toast.error('Something went wrong while registering the user.');
 }
 
   }
