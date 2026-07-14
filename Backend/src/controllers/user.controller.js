@@ -85,5 +85,14 @@ try {
 }
     }
 )
+const fetchUser=asyncHandler(
+    async(req,res)=>{
+        try {
+            return req.user
+        } catch (error) {
+            throw new ApiError(404,'User Not Found')
+        }
 
-export {registerUser,loginUser,refreshAccessToken}
+    }
+)
+export {registerUser,loginUser,refreshAccessToken,fetchUser}
