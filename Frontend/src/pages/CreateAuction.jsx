@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { UploadCloud, X } from "lucide-react"; // X icon import kiya
+import { UploadCloud, X } from "lucide-react";
 
 export default function CreateAuction() {
   const [images, setImages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false); // API call ki loading state
   const [formData, setFormData] = useState({
     title: "",
-    category: "Electronics",
+    category: "Mobiles",
     condition: "Brand New",
     startingBid: "",
-    reservePrice: "",
     endDate: "",
     description: "",
   });
@@ -17,20 +17,15 @@ export default function CreateAuction() {
     const files = Array.from(e.target.files);
 
     const preview = files.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
+      file, // Original file object for FormData
+      url: URL.createObjectURL(file), // Preview ke liye URL
     }));
 
-    // Nayi images ko purani images ke sath jod diya (agar multiple baar upload kare)
     setImages((prev) => [...prev, ...preview]);
   };
 
-  // Image remove karne ka function
   const removeImage = (indexToRemove) => {
-    // Memory free karne ke liye URL revoke karna zaroori hai
     URL.revokeObjectURL(images[indexToRemove].url);
-    
-    // Us index wali image ko array se hata do
     setImages((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
@@ -39,6 +34,65 @@ export default function CreateAuction() {
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  // Naya Submit Handler (using Fetch, No Axios)
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // Page refresh rokne ke liye
+
+    // 1. Validation (Frontend par check kar lo)
+    if (images.length < 2 || images.length > 5) {
+      alert("Please upload at least 2 and at most 5 images.");
+      return;
+    }
+
+    if (!formData.title || !formData.startingBid || !formData.endDate) {
+      alert("Please fill all the required product details.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // 2. FormData banayein
+      const payload = new FormData();
+
+      // State fields ko backend ke names ke sath map kiya
+      payload.append("productName", formData.title);
+      payload.append("category", formData.category);
+      payload.append("condition", formData.condition);
+      payload.append("startingPrice", formData.startingBid);
+      payload.append("auctionEndDate", formData.endDate);
+      payload.append("description", formData.description);
+
+      // 3. Images ko append karein (images key backend ke upload.array('images') se match honi chahiye)
+      images.forEach((img) => {
+        payload.append("auctionPhotos", img.file);
+      });
+
+      // 4. Token nikaalein
+      const token = localStorage.getItem("accessToken") || "";
+
+      // 5. Native Fetch Request
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/auctions/create-auction`, {
+    method: "POST",
+    credentials: "include", // YEH SABSE ZAROORI HAI: Iske bina cookie backend tak nahi jayegi
+    body: payload,          // FormData bhej rahe hain, isliye Content-Type khud set ho jayega
+});
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Auction Created Successfully!");
+        // Yahan par aap user ko redirect kar sakte ho ya form clear kar sakte ho
+      } else {
+        alert(data.message || "Failed to create auction");
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -57,7 +111,8 @@ export default function CreateAuction() {
           </p>
         </div>
 
-        <div className="grid xl:grid-cols-[360px_1fr] gap-8">
+        <form onSubmit={handleSubmit} className="grid xl:grid-cols-[360px_1fr] gap-8">
+          
           {/* Upload Card */}
           <div className="rounded-3xl border border-slate-800 bg-[#111827]/70 backdrop-blur-xl p-6 h-fit">
             <h2 className="text-2xl font-bold">Product Images</h2>
@@ -78,19 +133,17 @@ export default function CreateAuction() {
               multiple
               type="file"
               onChange={handleImages}
-              accept="image/*" // Accept only images
+              accept="image/*"
             />
 
             <div className="grid grid-cols-3 gap-3 mt-6">
               {images.map((img, index) => (
-                // Parent div ko relative diya taki button uske andar absolute lag sake
                 <div key={index} className="relative group">
                   <img
                     src={img.url}
                     alt=""
                     className="h-24 w-full rounded-xl object-cover border border-slate-700"
                   />
-                  {/* Hover karne pe remove button dikhega */}
                   <button
                     type="button"
                     onClick={() => removeImage(index)}
@@ -136,13 +189,12 @@ export default function CreateAuction() {
                     onChange={handleChange}
                     className="w-full rounded-2xl border border-slate-700 bg-[#0B101A]/70 px-5 py-4 outline-none focus:border-violet-500"
                   >
-                    <option>Electronics</option>
                     <option>Mobiles</option>
                     <option>Laptops</option>
-                    <option>Gaming</option>
                     <option>Fashion</option>
                     <option>Furniture</option>
                     <option>Accessories</option>
+                    <option>Others</option>
                   </select>
                 </div>
 
@@ -180,47 +232,24 @@ export default function CreateAuction() {
                     className="w-full rounded-2xl border border-slate-700 bg-[#0B101A]/70 px-5 py-4 outline-none focus:border-violet-500"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Reserve Price
-                  </label>
-                  <input
-                    type="number"
-                    name="reservePrice"
-                    value={formData.reservePrice}
-                    onChange={handleChange}
-                    placeholder="Optional"
-                    className="w-full rounded-2xl border border-slate-700 bg-[#0B101A]/70 px-5 py-4 outline-none focus:border-violet-500"
-                  />
-                </div>
               </div>
 
-              {/* End Date */}
-              {/* End Date */}
-<div>
-  <label className="block text-sm font-medium text-slate-300 mb-2">
-    Auction End Date
-  </label>
-  <input
-    // Default type text rakha hai taki custom placeholder dikhe
-    type="text" 
-    name="endDate"
-    value={formData.endDate}
-    onChange={handleChange}
-    placeholder="Select Date & Time..."
-    
-    // Jaise hi click hoga, type change hoke calendar khul jayega
-    onFocus={(e) => (e.target.type = "datetime-local")}
-    
-    // Agar user bina date select kiye bahar click kare, toh wapas text bana do
-    onBlur={(e) => {
-      if (!e.target.value) e.target.type = "text";
-    }}
-    
-    className="w-full rounded-2xl border border-slate-700 bg-[#0B101A]/70 px-5 py-4 outline-none focus:border-violet-500 text-slate-300"
-  />
-</div>
+              {/* End Date (UPDATED HERE) */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Auction End Date
+                </label>
+                <input
+                  type="datetime-local" 
+                  name="endDate"
+                  value={formData.endDate}
+                  onChange={handleChange}
+                  // showPicker() calendar ko turant open karne ke liye
+                  onClick={(e) => e.target.showPicker && e.target.showPicker()} 
+                  // [color-scheme:dark] se calendar box dark mode mein khulega
+                  className="w-full cursor-pointer rounded-2xl border border-slate-700 bg-[#0B101A]/70 px-5 py-4 outline-none focus:border-violet-500 text-slate-300 [color-scheme:dark]"
+                />
+              </div>
 
               {/* Description */}
               <div>
@@ -237,25 +266,24 @@ export default function CreateAuction() {
                 />
               </div>
             </div>
-            
+
             {/* Action Buttons */}
             <div className="mt-10 flex flex-col sm:flex-row justify-end gap-4">
-              <button
-                type="button"
-                className="rounded-2xl border border-slate-700 px-8 py-4 font-medium hover:border-violet-500 hover:bg-violet-500/5 transition"
-              >
-                Save Draft
-              </button>
 
               <button
                 type="submit"
-                className="rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-10 py-4 font-semibold text-white hover:scale-[1.02] transition-all duration-300 shadow-[0_0_30px_rgba(124,58,237,0.25)]"
+                disabled={isLoading} 
+                className={`rounded-2xl px-10 py-4 font-semibold text-white transition-all duration-300 shadow-[0_0_30px_rgba(124,58,237,0.25)] ${
+                  isLoading
+                    ? "bg-gray-600 cursor-not-allowed"
+                    : "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:scale-[1.02]"
+                }`}
               >
-                Publish Auction
+                {isLoading ? "Publishing..." : "Publish Auction"}
               </button>
             </div>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

@@ -10,8 +10,11 @@ const auctionSchema=new mongoose.Schema({
     },
     images:{
         type:[String],
-        validate:function(v){
-            return v.length()>=2&&v.length()<=5;
+        validate:{
+            validator:function(v){
+                return v.length>=2&&v.length<=5;
+            },
+            message:'At least 2 and at most 5 images are required'
         }
     },
     seller: { 
@@ -23,21 +26,19 @@ const auctionSchema=new mongoose.Schema({
         type: Number, 
         required: true 
     },
-    startDate:{
-        type:Date,
-        required:true
-    },
     endDate:{
         type:Date,
         required:true
     },
     status:{
         type:String,
-        enum:['Cancelled','Open','Completed']
+        enum:['Cancelled','Open','Completed'],
+        default:'Open'
     },
     condition:{
         type:String,
-        enum:['Brand New','Like New','Excellent','Good','Fair']
+        enum:['Brand New','Like New','Excellent','Good','Fair'],
+        required:true
     },
     description:{
         type:String

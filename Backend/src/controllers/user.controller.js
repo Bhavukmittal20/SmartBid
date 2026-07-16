@@ -7,8 +7,8 @@ import mongoose,{mongo} from "mongoose";
 const generateAccessandRefreshTokens=async(userId)=>{
     try{
         const user=await User.findById(userId)
-        const accessToken=user.generateAccessToken()
-        const refreshToken=user.generateRefreshToken()
+        const accessToken=await user.generateAccessToken()
+        const refreshToken=await user.generateRefreshToken()
         user.refreshToken=refreshToken
         await user.save({validateBeforeSave: false})
         return {accessToken,refreshToken}
@@ -18,6 +18,7 @@ const generateAccessandRefreshTokens=async(userId)=>{
 }
 const registerUser=asyncHandler(
     async (req,res)=>{
+        console.log('Request AAgayi balle balle')
         const {email,fullname, password}=req.body;
         if([fullname,email,password].some((field)=>field?.trim()=="")){
             throw new ApiError(400,'All fields are compulsory')
@@ -78,8 +79,8 @@ try {
             httpOnly:true,
             secure:false
             }
-            const {newaccessToken,newrefreshToken}= await generateAccessandRefreshTokens(user._id)
-            return res.status(200).cookie("accessToken",newaccessToken,options).cookie("refreshToken",newrefreshToken,options).json(new ApiResponse(200,{newaccessToken,newrefreshToken},"Access Token Refreshed"))
+            const {accessToken,refreshToken}= await generateAccessandRefreshTokens(user._id)
+            return res.status(200).cookie("accessToken",accessToken,options).cookie("refreshToken",refreshToken,options).json(new ApiResponse(200,{accessToken,refreshToken},"Access Token Refreshed"))
 } catch (error) {
     throw new ApiError(401,error?.message||"Invalid Refresh Token")
 }

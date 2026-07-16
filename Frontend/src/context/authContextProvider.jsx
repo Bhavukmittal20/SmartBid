@@ -20,7 +20,8 @@ export const AuthProvider=({children})=>{
             })
             const data=await response.json()
             if(!data.success){
-                throw new Error(data.message)
+                throw new Error(data.message);
+
             }
             setUser(data.user)
         }catch (error){
@@ -52,7 +53,7 @@ export const AuthProvider=({children})=>{
             if(!data2.success){
                 navigate('/');
                 toast.error(data2.message)
-            }else{
+            }else if(location.pathname==='/'||location.pathname==='/login'||location.pathname==='/register'){
                 navigate('/dashboard')
                 setUser(data2.user)
             }
