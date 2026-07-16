@@ -1,4 +1,6 @@
 import { Auction } from "../models/auction.model.js";
+import { Bid } from "../models/bid.model.js";
+import mongoose from "mongoose";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
@@ -42,4 +44,51 @@ const registerAuction=asyncHandler(async(req,res)=>{
         auction:createdAuction
     }))
 })
-export {registerAuction}
+const getAuctionDetails=asyncHandler(async(req,res)=>{
+    const {auctionId}=req.params;
+
+    if(!mongoose.isValidObjectId(auctionId)){
+        throw new ApiError(400,'Invalid auction id')
+    }
+
+    const auction=await Auction.findById(auctionId)
+        .populate('seller','fullname')
+        .lean();
+
+    if(!auction) throw new ApiError(404,'Auction Not Found')
+
+    const bids=await Bid.find({auction:auctionId})
+        .sort({amount:-1,createdAt:1})
+        .populate('owner','fullname')
+        .lean();
+
+    const hasEnded=auction.status==='Completed'||new Date(auction.endDate)<=new Date();
+    const highestBid=bids[0]||null;
+    const auctionDetails={
+        ...auction,
+        status:hasEnded&&auction.status==='Open'?'Completed':auction.status,
+        bids,
+        currentBid:highestBid?.amount??auction.startingPrice,
+        winner:hasEnded?highestBid?.owner??null:null
+    };
+
+    return res.status(200).json(new ApiResponse(200,{
+        auction:auctionDetails
+    }))
+})
+const getAuctions=asyncHandler(async(req,res)=>{
+    const auctions=await Auction.find({status:{$ne:'Cancelled'}}).sort({createdAt:-1}).populate('seller','fullname').lean();
+    const auctionIds=auctions.map((auction)=>auction._id);
+    const summaries=await Bid.aggregate([
+        {$match:{auction:{$in:auctionIds}}},
+        {$group:{_id:'$auction',currentBid:{$max:'$amount'},bidCount:{$sum:1}}}
+    ]);
+    const summaryById=new Map(summaries.map((summary)=>[String(summary._id),summary]));
+    const now=new Date();
+    const auctionList=auctions.map((auction)=>{
+        const summary=summaryById.get(String(auction._id));
+        return {...auction,status:auction.status==='Open'&&new Date(auction.endDate)<=now?'Completed':auction.status,currentBid:summary?.currentBid??auction.startingPrice,bidCount:summary?.bidCount??0};
+    });
+    return res.status(200).json(new ApiResponse(200,{auctions:auctionList}));
+})
+export {registerAuction,getAuctionDetails,getAuctions}

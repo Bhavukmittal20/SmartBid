@@ -47,7 +47,7 @@ const loginUser=asyncHandler(
         if(!email||!password) throw new ApiError(400,'Both password and emails are necessary')
         const user=await User.findOne({email})
     if(!user) throw new ApiError(404,'User email not found')
-        const isPasswordValid= user.isPasswordCorrect=(password)
+        const isPasswordValid=await user.isPasswordCorrect(password)
     if(!isPasswordValid)
         throw new ApiError(404,'Invalid Credentials')
     const {accessToken,refreshToken}=await generateAccessandRefreshTokens(user._id)
@@ -88,11 +88,10 @@ try {
 )
 const fetchUser=asyncHandler(
     async(req,res)=>{
-        try {
-            return req.user
-        } catch (error) {
-            throw new ApiError(404,'User Not Found')
-        }
+        if(!req.user) throw new ApiError(404,'User Not Found')
+        return res.status(200).json(new ApiResponse(200,{
+            user:req.user
+        },'User details fetched successfully'))
 
     }
 )

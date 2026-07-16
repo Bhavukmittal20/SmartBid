@@ -1,32 +1,25 @@
-import {createContext, useContext, useEffect, useState} from 'react'
+import {useEffect, useState} from 'react'
 import {AuthContext} from './authContext.js'
-import { data, useNavigate } from 'react-router'
-import { toast } from 'react-toastify'
 export const AuthProvider=({children})=>{
-    const navigate=useNavigate()
     const [user,setUser]=useState(null)
-    const [loading,setLoading]=useState(true)
     const login=async(email,password)=>{
-        try{
-            const response=await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/login`,{
-                method:'POST',
-                credentials:'include',
-                headers:{
-                    'Content-Type':'application/json'
-                },
-                body:JSON.stringify({
-                    email,password
-                })
+        const response=await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/login`,{
+            method:'POST',
+            credentials:'include',
+            headers:{
+                'Content-Type':'application/json'
+            },
+            body:JSON.stringify({
+                email,password
             })
-            const data=await response.json()
-            if(!data.success){
-                throw new Error(data.message);
-
-            }
-            setUser(data.user)
-        }catch (error){
-            toast.error(error.message)
+        })
+        const result=await response.json()
+        if(!response.ok||!result.success){
+            throw new Error(result.message||'Unable to login');
         }
+        const loggedInUser=result.data.user
+        setUser(loggedInUser)
+        return loggedInUser
     }
     useEffect(()=>{
     const verifyUser=async()=> {try {
@@ -39,7 +32,7 @@ export const AuthProvider=({children})=>{
             });
             const data1=await response1.json()
             if(!data1.success) {
-                navigate('/')
+                setUser(null)
                 return;
             }
             const response2=await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/users/get-details`,{
@@ -51,13 +44,12 @@ export const AuthProvider=({children})=>{
             })
             const data2=await response2.json();
             if(!data2.success){
-                navigate('/');
-                toast.error(data2.message)
-            }else if(location.pathname==='/'||location.pathname==='/login'||location.pathname==='/register'){
-                navigate('/dashboard')
-                setUser(data2.user)
+                setUser(null)
+            }else {
+                setUser(data2.data.user)
             }
-} catch (error) {
+} catch {
+    setUser(null)
     console.error("Unable to fetch details")
 }}
 verifyUser()

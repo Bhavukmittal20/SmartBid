@@ -1,21 +1,37 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import AuctionCard from "../components/AuctionCard";
-import auctions from "../data/auctions";
 
 export default function Auctions() {
 
   const [search,setSearch]=useState("");
   const [category,setCategory]=useState("All");
   const [sort,setSort]=useState("latest");
+  const [auctions,setAuctions]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState("");
 
-  const categories=[
-    "All",
-    "Electronics",
-    "Laptop",
-    "Gaming",
-    "Camera",
-  ];
+  useEffect(()=>{
+    const controller=new AbortController();
+    const loadAuctions=async()=>{
+      try{
+        setLoading(true);
+        const response=await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/auctions`,{credentials:"include",signal:controller.signal});
+        const result=await response.json();
+        if(!response.ok||!result.success) throw new Error(result.message||"Unable to load auctions");
+        setAuctions(result.data.auctions);
+        setError("");
+      }catch(requestError){
+        if(requestError.name!=="AbortError") setError(requestError.message);
+      }finally{
+        if(!controller.signal.aborted) setLoading(false);
+      }
+    };
+    loadAuctions();
+    return()=>controller.abort();
+  },[]);
+
+  const categories=useMemo(()=>["All",...new Set(auctions.map((item)=>item.category).filter(Boolean))],[auctions]);
 
   const filteredAuctions=useMemo(()=>{
 
@@ -31,7 +47,7 @@ export default function Auctions() {
 
           data=data.filter(item=>
 
-             item.title.toLowerCase().includes(search.toLowerCase())
+             item.productName.toLowerCase().includes(search.toLowerCase())
 
           );
 
@@ -51,7 +67,7 @@ export default function Auctions() {
 
       return data;
 
-  },[search,category,sort]);
+  },[auctions,search,category,sort]);
 
   return(
 
@@ -151,13 +167,17 @@ Lowest Price
 
 <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8 mt-10">
 
+{loading && <p className="col-span-full py-16 text-center text-slate-400">Loading auctions...</p>}
+
+{error && <p className="col-span-full rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-center text-red-300">{error}</p>}
+
 {
 
 filteredAuctions.map(item=>
 
 <AuctionCard
 
-key={item.id}
+key={item._id}
 
 auction={item}
 
@@ -166,6 +186,8 @@ auction={item}
 )
 
 }
+
+{!loading&&!error&&filteredAuctions.length===0&&<p className="col-span-full py-16 text-center text-slate-400">No auctions found.</p>}
 
 </div>
 

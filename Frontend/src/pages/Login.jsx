@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Gavel, Mail, Lock } from 'lucide-react';
 import { useAuth } from '../context/authContext';
 import { toast } from 'react-toastify';
@@ -16,7 +16,7 @@ export default function LoginPage() {
       await login(email,password);
       navigate('/dashboard')
     }catch(err){
-      toast.error(err);
+      toast.error(err.message);
     }
   }
 

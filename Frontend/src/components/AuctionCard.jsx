@@ -1,32 +1,41 @@
 import { Heart, Clock, Gavel } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
 export default function AuctionCard({ auction }) {
   const navigate = useNavigate();
 
   const [liked, setLiked] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(auction.endsIn);
+  const getTimeLeft = useCallback(() => {
+    if (!auction.endDate) return auction.endsIn || "Not specified";
+    const difference = new Date(auction.endDate) - new Date();
+    if (difference <= 0) return "Ended";
+    const days = Math.floor(difference / 86400000);
+    const hours = Math.floor((difference % 86400000) / 3600000);
+    const minutes = Math.floor((difference % 3600000) / 60000);
+    return `${days ? `${days}d ` : ""}${hours}h ${minutes}m`;
+  }, [auction.endDate, auction.endsIn]);
+  const [timeLeft, setTimeLeft] = useState(getTimeLeft);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setTimeLeft((prev) => prev); // Backend ke baad actual timer laga denge
+      setTimeLeft(getTimeLeft());
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [getTimeLeft]);
 
   return (
     <div
-      onClick={() => navigate(`/auction/${auction.id}`)}
+      onClick={() => navigate(`/auction/${auction._id || auction.id}`, { state: { auction } })}
       className="group cursor-pointer overflow-hidden rounded-3xl border border-slate-800 bg-[#111827]/70 backdrop-blur-xl hover:border-violet-500 hover:-translate-y-2 hover:shadow-[0_0_25px_rgba(124,58,237,0.18)] transition-all duration-300"
     >
       {/* Image */}
       <div className="relative overflow-hidden">
 
         <img
-          src={auction.image}
-          alt={auction.title}
+          src={auction.images?.[0] || auction.image}
+          alt={auction.productName || auction.title}
           className="h-60 w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
 
@@ -60,7 +69,7 @@ export default function AuctionCard({ auction }) {
       <div className="p-6">
 
         <h2 className="text-xl font-bold text-white">
-          {auction.title}
+          {auction.productName || auction.title}
         </h2>
 
         <p className="mt-1 text-sm text-slate-400">
@@ -90,7 +99,7 @@ export default function AuctionCard({ auction }) {
             </p>
 
             <h3 className="mt-1 text-xl font-semibold">
-              {auction.bids}
+              {auction.bidCount ?? auction.bids?.length ?? auction.bids ?? 0}
             </h3>
 
           </div>
@@ -106,7 +115,7 @@ export default function AuctionCard({ auction }) {
           </span>
 
           <span className="font-medium text-white">
-            {auction.seller}
+            {auction.seller?.fullname || auction.seller || "Seller"}
           </span>
 
         </div>
@@ -128,7 +137,7 @@ export default function AuctionCard({ auction }) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/auction/${auction.id}`);
+              navigate(`/auction/${auction._id || auction.id}`, { state: { auction } });
             }}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 font-medium hover:scale-105 transition"
           >

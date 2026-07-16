@@ -2,7 +2,8 @@ import mongoose from "mongoose";
 const bidSchema=new mongoose.Schema({
     auction:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:'User'
+        ref:'Auction',
+        required:true
     },
     owner:{
         type:mongoose.Schema.Types.ObjectId,
