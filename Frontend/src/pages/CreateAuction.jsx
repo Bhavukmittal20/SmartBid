@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { UploadCloud, X } from "lucide-react";
+import { toast } from "react-toastify";
 
 export default function CreateAuction() {
   const [images, setImages] = useState([]);
@@ -42,12 +43,12 @@ export default function CreateAuction() {
 
     // 1. Validation (Frontend par check kar lo)
     if (images.length < 2 || images.length > 5) {
-      alert("Please upload at least 2 and at most 5 images.");
+      toast.warning("Please upload at least 2 and at most 5 images.");
       return;
     }
 
     if (!formData.title || !formData.startingBid || !formData.endDate) {
-      alert("Please fill all the required product details.");
+      toast.warning("Please fill all the required product details.");
       return;
     }
 
@@ -70,10 +71,7 @@ export default function CreateAuction() {
         payload.append("auctionPhotos", img.file);
       });
 
-      // 4. Token nikaalein
-      const token = localStorage.getItem("accessToken") || "";
-
-      // 5. Native Fetch Request
+      // 4. Native Fetch Request
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/auctions/create-auction`, {
     method: "POST",
     credentials: "include", // YEH SABSE ZAROORI HAI: Iske bina cookie backend tak nahi jayegi
@@ -83,10 +81,10 @@ export default function CreateAuction() {
       const data = await response.json();
 
       if (response.ok) {
-        alert("Auction Created Successfully!");
+        toast.success("Auction created successfully!");
         // Yahan par aap user ko redirect kar sakte ho ya form clear kar sakte ho
       } else {
-        alert(data.message || "Failed to create auction");
+        toast.error(data.message || "Failed to create auction");
       }
     } catch (error) {
       console.error("Error submitting form:", error);
