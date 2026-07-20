@@ -26,10 +26,6 @@ const userSchema = new monogoose.Schema({
     },
     refreshToken:{
         type:String
-    },
-    stripeAccountId:{
-        type:String,
-        select:false
     }
 },{timestamps:true})
 userSchema.pre('save',async function(){

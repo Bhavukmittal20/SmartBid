@@ -2,8 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 const app=express()
-import { stripeWebhook } from './controllers/payment.controller.js'
-app.post('/api/v1/payments/webhook',express.raw({type:'application/json'}),stripeWebhook)
+import { razorpayWebhook } from './controllers/payment.controller.js'
+app.post('/api/v1/payments/webhook',express.raw({type:'application/json'}),razorpayWebhook)
 app.use(cors({
             origin:process.env.CORS_ORIGIN,
             credentials:true

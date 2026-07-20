@@ -7,10 +7,8 @@ const paymentSchema=new mongoose.Schema({
     amount:{type:Number,required:true},
     currency:{type:String,default:'inr'},
     status:{type:String,enum:['Pending','Paid','Failed'],default:'Pending'},
-    stripeCheckoutSessionId:{type:String},
-    stripePaymentIntentId:{type:String},
-    stripeDestinationAccountId:{type:String},
-    platformFeeAmount:{type:Number,default:0},
+    razorpayOrderId:{type:String},
+    razorpayPaymentId:{type:String},
     paidAt:{type:Date}
 },{timestamps:true});
 
