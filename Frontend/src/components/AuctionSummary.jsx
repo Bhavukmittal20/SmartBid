@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BadgeCheck, Clock3, CreditCard, Gavel, IndianRupee, ShieldCheck, Tag, UserRound } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -7,9 +7,27 @@ const money = (value = 0) => new Intl.NumberFormat("en-IN", { style: "currency",
 export default function AuctionSummary({ auction, isOwner, isWinner }) {
   const [bid, setBid] = useState(auction.currentBid + 500);
   const [submitting, setSubmitting] = useState(false);
+  const [startingPayment, setStartingPayment] = useState(false);
+  const [connectStatus, setConnectStatus] = useState(null);
+  const [startingOnboarding, setStartingOnboarding] = useState(false);
   const completed = auction.status === "Completed";
   const sellerName = auction.seller?.fullname || auction.seller || "Seller";
   const ending = auction.endDate ? new Date(auction.endDate).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : auction.endsIn || "Not specified";
+
+  useEffect(() => {
+    if (!isOwner) return;
+    const controller = new AbortController();
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/payments/connect/status`, { credentials: "include", signal: controller.signal })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || "Unable to load payout status");
+        setConnectStatus(result.data);
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") toast.error(error.message);
+      });
+    return () => controller.abort();
+  }, [isOwner]);
 
   const placeBid = async () => {
     if (Number(bid) <= auction.currentBid) return toast.error(`Bid must exceed ${money(auction.currentBid)}.`);
@@ -32,6 +50,42 @@ export default function AuctionSummary({ auction, isOwner, isWinner }) {
     }
   };
 
+  const startPayment = async () => {
+    try {
+      setStartingPayment(true);
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/payments/checkout-session`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auctionId: auction._id }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to start payment");
+      window.location.assign(result.data.url);
+    } catch (error) {
+      toast.error(error.message);
+      setStartingPayment(false);
+    }
+  };
+
+  const openStripePage = async (endpoint) => {
+    try {
+      setStartingOnboarding(true);
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/payments/connect/${endpoint}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ returnPath: `/auction/${auction._id}` }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to open Stripe");
+      window.location.assign(result.data.url);
+    } catch (error) {
+      toast.error(error.message);
+      setStartingOnboarding(false);
+    }
+  };
+
   return <div className="space-y-5">
     <div>
       <div className="flex flex-wrap gap-2 text-sm">
@@ -50,11 +104,16 @@ export default function AuctionSummary({ auction, isOwner, isWinner }) {
     </div>
 
     {isOwner ? <div className="rounded-3xl border border-amber-500/30 bg-amber-500/5 p-6">
-      <p className="text-sm font-semibold text-amber-300">Owner interface</p><h2 className="mt-2 text-xl font-semibold">Manage your auction</h2>
-      <p className="mt-2 text-sm leading-6 text-slate-400">Monitor bids and status. Buyers see bidding or payment controls here.</p>
+      <p className="text-sm font-semibold text-amber-300">Owner interface</p><h2 className="mt-2 text-xl font-semibold">{completed ? "Payment status" : "Manage your auction"}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-400">{completed ? `Winner payment: ${auction.paymentStatus || "Unpaid"}` : "Monitor bids and status. Buyers see bidding or payment controls here."}</p>
+      <div className="mt-5 rounded-2xl bg-slate-950/50 p-4">
+        <p className="text-sm text-slate-400">Seller payouts</p>
+        <p className={`mt-1 font-semibold ${connectStatus?.chargesEnabled && connectStatus?.payoutsEnabled ? "text-emerald-400" : "text-amber-300"}`}>{connectStatus?.chargesEnabled && connectStatus?.payoutsEnabled ? "Stripe payouts ready" : "Stripe onboarding required"}</p>
+        <button disabled={startingOnboarding} onClick={() => openStripePage(connectStatus?.chargesEnabled && connectStatus?.payoutsEnabled ? "dashboard" : "onboard")} className="mt-3 w-full rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold transition hover:bg-white/15 disabled:opacity-50">{startingOnboarding ? "Opening Stripe..." : connectStatus?.chargesEnabled && connectStatus?.payoutsEnabled ? "Open payout dashboard" : "Set up seller payouts"}</button>
+      </div>
       <button disabled={completed} onClick={() => toast.info("Connect the cancel-auction API to enable this action.")} className="mt-5 w-full rounded-2xl border border-red-500/40 py-4 font-semibold text-red-300 disabled:opacity-40">Cancel auction</button>
     </div> : completed ? <div className={`rounded-3xl border p-6 ${isWinner ? "border-emerald-500/30 bg-emerald-500/5" : "border-slate-800 bg-[#111827]/70"}`}>
-      {isWinner ? <><BadgeCheck className="text-emerald-400" size={30} /><h2 className="mt-3 text-xl font-semibold">You won this auction</h2><p className="mt-2 text-sm text-slate-400">Complete payment to confirm your purchase.</p><button onClick={() => toast.info("Connect your payment gateway here.")} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-4 font-semibold text-slate-950"><CreditCard size={19} /> Pay {money(auction.currentBid)}</button><p className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-500"><ShieldCheck size={14} /> Secure payment</p></> : <><Clock3 className="text-slate-400" size={28} /><h2 className="mt-3 text-xl font-semibold">Auction has ended</h2><p className="mt-2 text-sm text-slate-400">Only the winning bidder can make payment.</p></>}
+      {isWinner ? auction.paymentStatus === "Paid" ? <><BadgeCheck className="text-emerald-400" size={30} /><h2 className="mt-3 text-xl font-semibold">Payment completed</h2><p className="mt-2 text-sm text-slate-400">Your winning purchase has been paid successfully.</p></> : <><BadgeCheck className="text-emerald-400" size={30} /><h2 className="mt-3 text-xl font-semibold">You won this auction</h2><p className="mt-2 text-sm text-slate-400">Complete payment to confirm your purchase.</p><button disabled={startingPayment} onClick={startPayment} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-4 font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"><CreditCard size={19} /> {startingPayment ? "Opening checkout..." : `Pay ${money(auction.currentBid)}`}</button><p className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-500"><ShieldCheck size={14} /> Secure payment by Stripe</p></> : <><Clock3 className="text-slate-400" size={28} /><h2 className="mt-3 text-xl font-semibold">Auction has ended</h2><p className="mt-2 text-sm text-slate-400">Only the winning bidder can make payment.</p></>}
     </div> : <div className="rounded-3xl border border-violet-500/20 bg-violet-500/5 p-6">
       <p className="text-sm font-semibold text-violet-300">Buyer interface</p><label className="mt-4 block text-sm text-slate-400">Your bid</label>
       <div className="relative mt-2"><IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} /><input type="number" value={bid} min={auction.currentBid + 1} onChange={(e) => setBid(e.target.value)} className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-4 pl-11 pr-4 outline-none focus:border-violet-500" /></div>

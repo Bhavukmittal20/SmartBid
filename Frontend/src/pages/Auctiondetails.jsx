@@ -22,6 +22,8 @@ const normaliseAuction = (item, id) => ({
   status: item?.endDate && new Date(item.endDate) <= new Date() ? "Completed" : item?.status || "Open",
   bids: Array.isArray(item?.bids) ? item.bids : [],
   winner: item?.winner,
+  paymentStatus: item?.paymentStatus || "Unpaid",
+  paidAt: item?.paidAt,
   createdAt: item?.createdAt,
 });
 
@@ -81,14 +83,20 @@ export default function AuctionDetails() {
         };
       });
     };
+    const handlePaymentCompleted = (update) => {
+      if (String(update.auctionId) !== String(id)) return;
+      setAuctionData((current) => current ? { ...current, paymentStatus: update.paymentStatus, paidAt: update.paidAt } : current);
+    };
 
     socket.connect();
     socket.emit("auction:join", id);
     socket.on("bid:placed", handleBidPlaced);
+    socket.on("payment:completed", handlePaymentCompleted);
 
     return () => {
       socket.emit("auction:leave", id);
       socket.off("bid:placed", handleBidPlaced);
+      socket.off("payment:completed", handlePaymentCompleted);
       socket.disconnect();
     };
   }, [id]);

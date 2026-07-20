@@ -11,15 +11,20 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [bidStats, setBidStats] = useState({ totalBids: 0, activeBids: 0 });
 
   useEffect(() => {
     const controller = new AbortController();
     const loadAuctions = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/auctions`, { credentials: "include", signal: controller.signal });
-        const result = await response.json();
-        if (!response.ok || !result.success) throw new Error(result.message || "Unable to load auctions");
-        setAuctions(result.data.auctions);
+        const [auctionResponse,statsResponse] = await Promise.all([
+          fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/auctions`, { credentials: "include", signal: controller.signal }),
+          fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/bids/stats`, { credentials: "include", signal: controller.signal })
+        ]);
+        const [auctionResult,statsResult] = await Promise.all([auctionResponse.json(),statsResponse.json()]);
+        if (!auctionResponse.ok || !auctionResult.success) throw new Error(auctionResult.message || "Unable to load auctions");
+        setAuctions(auctionResult.data.auctions);
+        if (statsResponse.ok && statsResult.success) setBidStats(statsResult.data);
       } catch (requestError) {
         if (requestError.name !== "AbortError") setError(requestError.message);
       } finally {
@@ -31,8 +36,17 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const handleAuctionUpdate = (update) => {
+    const handleAuctionUpdate = async (update) => {
       setAuctions((current) => current.map((auction) => String(auction._id) === String(update.auctionId) ? { ...auction, currentBid: update.currentBid, bidCount: update.bidCount } : auction));
+      if(String(update.bid?.owner?._id||update.bid?.owner)===String(user?._id)){
+        try{
+          const response=await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/bids/stats`,{credentials:"include"});
+          const result=await response.json();
+          if(response.ok&&result.success) setBidStats(result.data);
+        }catch{
+          // The next dashboard load will retry the statistics request.
+        }
+      }
     };
     const handleAuctionCreated = (auction) => setAuctions((current) => current.some((item) => String(item._id) === String(auction._id)) ? current : [auction, ...current]);
     socket.connect();
@@ -43,17 +57,19 @@ export default function Dashboard() {
       socket.off("auction:created", handleAuctionCreated);
       socket.disconnect();
     };
-  }, []);
+  }, [user?._id]);
 
   const matchingAuctions = useMemo(() => auctions.filter((auction) => auction.productName.toLowerCase().includes(search.toLowerCase())), [auctions, search]);
   const liveAuctions = matchingAuctions.filter((auction) => auction.status === "Open").slice(0, 3);
   const myAuctions = matchingAuctions.filter((auction) => String(auction.seller?._id || auction.seller) === String(user?._id)).slice(0, 3);
 
+  const myAuctionCount=auctions.filter((auction)=>String(auction.seller?._id||auction.seller)===String(user?._id)).length;
+  const liveAuctionCount=auctions.filter((auction)=>auction.status==="Open").length;
   const stats = [
-    { title: "Active Bids", value: "24", color: "from-violet-500 to-purple-600" },
-    { title: "Won Auctions", value: "08", color: "from-emerald-500 to-green-600" },
-    { title: "Watchlist", value: "31", color: "from-orange-500 to-amber-500" },
-    { title: "Money Saved", value: "₹1.24L", color: "from-cyan-500 to-sky-600" },
+    { title: "Total Bids", value: bidStats.totalBids, color: "from-violet-500 to-purple-600" },
+    { title: "Active Bids", value: bidStats.activeBids, color: "from-emerald-500 to-green-600" },
+    { title: "My Auctions", value: myAuctionCount, color: "from-orange-500 to-amber-500" },
+    { title: "Live Auctions", value: liveAuctionCount, color: "from-cyan-500 to-sky-600" },
   ];
   const navigate=useNavigate()
   return (

@@ -6,6 +6,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { getIO } from "../socket.js";
+import { Payment } from "../models/payment.model.js";
 
 const registerAuction=asyncHandler(async(req,res)=>{
     const{productName,category,condition,auctionEndDate,description,startingPrice}=req.body;
@@ -64,6 +65,7 @@ const getAuctionDetails=asyncHandler(async(req,res)=>{
         .sort({amount:-1,createdAt:1})
         .populate('owner','fullname')
         .lean();
+    const payment=await Payment.findOne({auction:auctionId}).select('status paidAt').lean();
 
     const hasEnded=auction.status==='Completed'||new Date(auction.endDate)<=new Date();
     const highestBid=bids[0]||null;
@@ -72,7 +74,9 @@ const getAuctionDetails=asyncHandler(async(req,res)=>{
         status:hasEnded&&auction.status==='Open'?'Completed':auction.status,
         bids,
         currentBid:highestBid?.amount??auction.startingPrice,
-        winner:hasEnded?highestBid?.owner??null:null
+        winner:hasEnded?highestBid?.owner??null:null,
+        paymentStatus:payment?.status??'Unpaid',
+        paidAt:payment?.paidAt??null
     };
 
     return res.status(200).json(new ApiResponse(200,{

@@ -37,4 +37,19 @@ const placeBid=asyncHandler(async(req,res)=>{
     return res.status(201).json(new ApiResponse(201,update,'Bid placed successfully'));
 });
 
-export {placeBid};
+const getMyBidStats=asyncHandler(async(req,res)=>{
+    const userId=req.user._id;
+    const [totalBids,auctionIds]=await Promise.all([
+        Bid.countDocuments({owner:userId}),
+        Bid.distinct('auction',{owner:userId})
+    ]);
+    const activeBids=await Auction.countDocuments({
+        _id:{$in:auctionIds},
+        status:'Open',
+        endDate:{$gt:new Date()}
+    });
+
+    return res.status(200).json(new ApiResponse(200,{totalBids,activeBids},'Bid statistics fetched successfully'));
+});
+
+export {placeBid,getMyBidStats};
