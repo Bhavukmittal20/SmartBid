@@ -5,6 +5,7 @@ import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/AsyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { getIO } from "../socket.js";
 
 const registerAuction=asyncHandler(async(req,res)=>{
     const{productName,category,condition,auctionEndDate,description,startingPrice}=req.body;
@@ -39,9 +40,11 @@ const registerAuction=asyncHandler(async(req,res)=>{
         startingPrice:Number(startingPrice),
         endDate: new Date(auctionEndDate)
     })
-    const createdAuction=await Auction.findById(auction._id);
+    const createdAuction=await Auction.findById(auction._id).populate('seller','fullname').lean();
+    const auctionDetails={...createdAuction,currentBid:createdAuction.startingPrice,bidCount:0};
+    getIO().emit('auction:created',auctionDetails);
     return res.status(201).json(new ApiResponse(201,{
-        auction:createdAuction
+        auction:auctionDetails
     }))
 })
 const getAuctionDetails=asyncHandler(async(req,res)=>{

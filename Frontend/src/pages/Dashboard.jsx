@@ -1,8 +1,53 @@
-import { Bell, Plus, Search } from "lucide-react";
-import LiveAuction from "../components/LiveAuction";
+import { Bell, ChevronRight, Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import AuctionCard from "../components/AuctionCard";
+import { useAuth } from "../context/authContext";
+import socket from "../utils/socket";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const [auctions, setAuctions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadAuctions = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/auctions`, { credentials: "include", signal: controller.signal });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || "Unable to load auctions");
+        setAuctions(result.data.auctions);
+      } catch (requestError) {
+        if (requestError.name !== "AbortError") setError(requestError.message);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+    loadAuctions();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const handleAuctionUpdate = (update) => {
+      setAuctions((current) => current.map((auction) => String(auction._id) === String(update.auctionId) ? { ...auction, currentBid: update.currentBid, bidCount: update.bidCount } : auction));
+    };
+    const handleAuctionCreated = (auction) => setAuctions((current) => current.some((item) => String(item._id) === String(auction._id)) ? current : [auction, ...current]);
+    socket.connect();
+    socket.on("auction:updated", handleAuctionUpdate);
+    socket.on("auction:created", handleAuctionCreated);
+    return () => {
+      socket.off("auction:updated", handleAuctionUpdate);
+      socket.off("auction:created", handleAuctionCreated);
+      socket.disconnect();
+    };
+  }, []);
+
+  const matchingAuctions = useMemo(() => auctions.filter((auction) => auction.productName.toLowerCase().includes(search.toLowerCase())), [auctions, search]);
+  const liveAuctions = matchingAuctions.filter((auction) => auction.status === "Open").slice(0, 3);
+  const myAuctions = matchingAuctions.filter((auction) => String(auction.seller?._id || auction.seller) === String(user?._id)).slice(0, 3);
 
   const stats = [
     { title: "Active Bids", value: "24", color: "from-violet-500 to-purple-600" },
@@ -35,6 +80,8 @@ export default function Dashboard() {
   <div className="flex items-center bg-[#111827]/70 border border-slate-800 rounded-2xl px-4 py-3 w-full md:w-[350px] backdrop-blur-sm">
     <Search className="text-slate-500" size={18} />
     <input
+      value={search}
+      onChange={(event) => setSearch(event.target.value)}
       className="bg-transparent outline-none ml-3 w-full text-sm text-white"
       placeholder="Search auctions..."
     />
@@ -68,8 +115,20 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <LiveAuction />
+        {error && <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">{error}</div>}
+        <AuctionPreview title="Live Auctions" auctions={liveAuctions} loading={loading} empty="No live auctions available." onViewAll={() => navigate('/auction?view=live')} />
+        <AuctionPreview title="My Auctions" auctions={myAuctions} loading={loading} empty="You have not created any auctions yet." onViewAll={() => navigate('/auction?view=mine')} />
       </div>
     </div>
   );
+}
+
+function AuctionPreview({ title, auctions, loading, empty, onViewAll }) {
+  return <section>
+    <div className="mb-6 flex items-center justify-between gap-4">
+      <h2 className="text-2xl font-bold text-white">{title}</h2>
+      <button onClick={onViewAll} className="flex items-center gap-1 text-sm font-semibold text-violet-300 transition hover:text-violet-200">View all <ChevronRight size={17} /></button>
+    </div>
+    {loading ? <p className="py-12 text-center text-slate-400">Loading auctions...</p> : auctions.length ? <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">{auctions.map((auction) => <AuctionCard key={auction._id} auction={auction} />)}</div> : <div className="rounded-3xl border border-dashed border-slate-700 py-12 text-center text-slate-400">{empty}</div>}
+  </section>;
 }

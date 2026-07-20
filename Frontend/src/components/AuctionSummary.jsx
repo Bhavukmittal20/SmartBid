@@ -6,13 +6,30 @@ const money = (value = 0) => new Intl.NumberFormat("en-IN", { style: "currency",
 
 export default function AuctionSummary({ auction, isOwner, isWinner }) {
   const [bid, setBid] = useState(auction.currentBid + 500);
+  const [submitting, setSubmitting] = useState(false);
   const completed = auction.status === "Completed";
   const sellerName = auction.seller?.fullname || auction.seller || "Seller";
   const ending = auction.endDate ? new Date(auction.endDate).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : auction.endsIn || "Not specified";
 
-  const placeBid = () => {
+  const placeBid = async () => {
     if (Number(bid) <= auction.currentBid) return toast.error(`Bid must exceed ${money(auction.currentBid)}.`);
-    toast.info("Connect the bid API to submit this bid.");
+    try {
+      setSubmitting(true);
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/v1/bids`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auctionId: auction._id, amount: Number(bid) }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || "Unable to place bid");
+      setBid(Number(result.data.currentBid) + 500);
+      toast.success("Bid placed successfully");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return <div className="space-y-5">
@@ -41,7 +58,7 @@ export default function AuctionSummary({ auction, isOwner, isWinner }) {
     </div> : <div className="rounded-3xl border border-violet-500/20 bg-violet-500/5 p-6">
       <p className="text-sm font-semibold text-violet-300">Buyer interface</p><label className="mt-4 block text-sm text-slate-400">Your bid</label>
       <div className="relative mt-2"><IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} /><input type="number" value={bid} min={auction.currentBid + 1} onChange={(e) => setBid(e.target.value)} className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-4 pl-11 pr-4 outline-none focus:border-violet-500" /></div>
-      <button onClick={placeBid} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-4 font-semibold"><Gavel size={18} /> Place bid</button>
+      <button disabled={submitting} onClick={placeBid} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-4 font-semibold disabled:cursor-not-allowed disabled:opacity-60"><Gavel size={18} /> {submitting ? "Placing bid..." : "Place bid"}</button>
     </div>}
 
     <div className="rounded-3xl border border-slate-800 bg-[#111827]/70 p-6"><h2 className="flex items-center gap-2 text-xl font-semibold"><BadgeCheck className="text-violet-400" /> Description</h2><p className="mt-4 leading-7 text-slate-400">{auction.description}</p></div>

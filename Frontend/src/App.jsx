@@ -1,7 +1,3 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
 import { Route,Routes } from 'react-router'
 import SmartBidLanding from './pages/LandingPage'
@@ -13,6 +9,7 @@ import Footer from './components/Footer'
 import Auctions from './pages/Auctions'
 import AuctionDetails from './pages/Auctiondetails'
 import CreateAuction from './pages/CreateAuction'
+import Category from './pages/Category'
 function App() {
   return (
     <div>
@@ -25,6 +22,7 @@ function App() {
       <Route path='/auction' element={<Auctions />} />
       <Route path="/auction/:id" element={<AuctionDetails />} />
       <Route path="/create-auction" element={<CreateAuction />} />
+      <Route path="/categories" element={<Category />} />
     </Routes>
     <Footer />
     </div>

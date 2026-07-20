@@ -5,6 +5,7 @@ import ImageGallery from "../components/ImageGallery";
 import AuctionSummary from "../components/AuctionSummary";
 import { AuthContext } from "../context/authContext";
 import auctions from "../data/auctions";
+import socket from "../utils/socket";
 
 const normaliseAuction = (item, id) => ({
   _id: item?._id || item?.id || id,
@@ -63,6 +64,33 @@ export default function AuctionDetails() {
 
     fetchAuction();
     return () => controller.abort();
+  }, [id]);
+
+  useEffect(() => {
+    const handleBidPlaced = (update) => {
+      if (String(update.auctionId) !== String(id)) return;
+      setAuctionData((current) => {
+        if (!current) return current;
+        const existingBids = Array.isArray(current.bids) ? current.bids : [];
+        const alreadyIncluded = existingBids.some((bid) => String(bid._id) === String(update.bid._id));
+        return {
+          ...current,
+          currentBid: update.currentBid,
+          bidCount: update.bidCount,
+          bids: alreadyIncluded ? existingBids : [update.bid, ...existingBids],
+        };
+      });
+    };
+
+    socket.connect();
+    socket.emit("auction:join", id);
+    socket.on("bid:placed", handleBidPlaced);
+
+    return () => {
+      socket.emit("auction:leave", id);
+      socket.off("bid:placed", handleBidPlaced);
+      socket.disconnect();
+    };
   }, [id]);
 
   if (loading && !auctionData) {

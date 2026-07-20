@@ -11,8 +11,10 @@ app.use(express.static('public'))
 app.use(cookieParser())
 import userRouter from './routes/userRouter.js'
 import auctionRouter from './routes/auctionRouter.js'
+import bidRouter from './routes/bidRouter.js'
 app.use('/api/v1/users',userRouter)
 app.use('/api/v1/auctions',auctionRouter)
+app.use('/api/v1/bids',bidRouter)
 app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;
     res.status(statusCode).json({

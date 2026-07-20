@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import AuctionCard from "../components/AuctionCard";
+import { useSearchParams } from "react-router";
+import { useAuth } from "../context/authContext";
+import socket from "../utils/socket";
 
 export default function Auctions() {
+  const {user}=useAuth();
+  const [searchParams,setSearchParams]=useSearchParams();
+  const view=searchParams.get("view")||"all";
 
   const [search,setSearch]=useState("");
-  const [category,setCategory]=useState("All");
+  const [category,setCategory]=useState(searchParams.get("category")||"All");
   const [sort,setSort]=useState("latest");
   const [auctions,setAuctions]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -31,11 +37,29 @@ export default function Auctions() {
     return()=>controller.abort();
   },[]);
 
+  useEffect(()=>{
+    const handleAuctionUpdate=(update)=>{
+      setAuctions((current)=>current.map((auction)=>String(auction._id)===String(update.auctionId)?{...auction,currentBid:update.currentBid,bidCount:update.bidCount}:auction));
+    };
+    const handleAuctionCreated=(auction)=>setAuctions((current)=>current.some((item)=>String(item._id)===String(auction._id))?current:[auction,...current]);
+    socket.connect();
+    socket.on("auction:updated",handleAuctionUpdate);
+    socket.on("auction:created",handleAuctionCreated);
+    return()=>{
+      socket.off("auction:updated",handleAuctionUpdate);
+      socket.off("auction:created",handleAuctionCreated);
+      socket.disconnect();
+    };
+  },[]);
+
   const categories=useMemo(()=>["All",...new Set(auctions.map((item)=>item.category).filter(Boolean))],[auctions]);
 
   const filteredAuctions=useMemo(()=>{
 
       let data=[...auctions];
+
+      if(view==="live") data=data.filter(item=>item.status==="Open");
+      if(view==="mine") data=data.filter(item=>String(item.seller?._id||item.seller)===String(user?._id));
 
       if(category!=="All"){
 
@@ -67,7 +91,7 @@ export default function Auctions() {
 
       return data;
 
-  },[auctions,search,category,sort]);
+  },[auctions,search,category,sort,view,user?._id]);
 
   return(
 
@@ -77,7 +101,7 @@ export default function Auctions() {
 
 <h1 className="text-5xl font-bold">
 
-Live Auctions
+{view==="mine"?"My Auctions":view==="live"?"Live Auctions":"All Auctions"}
 
 </h1>
 
@@ -86,6 +110,10 @@ Live Auctions
 Discover amazing products and place your bids.
 
 </p>
+
+<div className="mt-8 flex flex-wrap gap-3">
+{[["all","All Auctions"],["live","Live Auctions"],["mine","My Auctions"]].map(([value,label])=><button key={value} onClick={()=>setSearchParams(category==="All"?{view:value}:{view:value,category})} className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition ${view===value?"bg-violet-600 text-white":"border border-slate-700 bg-[#111827] text-slate-300 hover:border-violet-500"}`}>{label}</button>)}
+</div>
 
 <div className="flex flex-col lg:flex-row gap-4 mt-10">
 
@@ -111,7 +139,7 @@ className="bg-transparent ml-3 outline-none w-full"
 
 value={category}
 
-onChange={(e)=>setCategory(e.target.value)}
+onChange={(e)=>{const value=e.target.value;setCategory(value);setSearchParams(value==="All"?{view}:{view,category:value});}}
 
 className="bg-[#111827] rounded-xl px-4 py-3"
 

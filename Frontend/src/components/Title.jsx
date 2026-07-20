@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Gavel, 
   Menu, 
@@ -41,9 +41,9 @@ export default function Title() {
 
         {/* Desktop Nav Links (Ye toh sabko dikhenge) */}
         <div className="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-300">
-          <a href="#" className="text-white hover:text-[#a78bfa] transition-colors">Home</a>
-          <a href="#" className="hover:text-white transition-colors">Auctions</a>
-          <a href="#" className="hover:text-white transition-colors">Categories</a>
+          <button onClick={() => navigate(user ? '/dashboard' : '/')} className="text-white hover:text-[#a78bfa] transition-colors">Home</button>
+          <button onClick={() => navigate('/auction?view=all')} className="hover:text-white transition-colors">Auctions</button>
+          <button onClick={() => navigate('/categories')} className="hover:text-white transition-colors">Categories</button>
           
           {/* Agar user logged in hai, toh 'Create Auction' dikha do */}
           {user && (
@@ -99,8 +99,12 @@ export default function Title() {
               Home
             </button>
 
-            <button onClick={() => { navigate("/auctions"); setIsOpen(false); }} className="text-left hover:text-[#a78bfa]">
+            <button onClick={() => { navigate("/auction?view=all"); setIsOpen(false); }} className="text-left hover:text-[#a78bfa]">
               Auctions
+            </button>
+
+            <button onClick={() => { navigate("/categories"); setIsOpen(false); }} className="text-left hover:text-[#a78bfa]">
+              Categories
             </button>
             
             {user && (
